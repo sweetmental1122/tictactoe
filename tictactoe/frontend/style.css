@@ -134,8 +134,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0;
-  width: 500px;
-  height: 500px;
 }
 
 /* Header */
@@ -236,7 +234,6 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #6e7681;
-  margin-bottom: 0.5rem;
   display: block;
 }
 .rooms-header {
@@ -373,8 +370,6 @@ body {
   padding: 3.8rem 1.5rem;
   text-align: center;
   box-shadow: 0 16px 48px rgba(0,0,0,0.5);
-  width: 500px;
-  height: 500px;
 }
 
 .game-info {

@@ -18,7 +18,7 @@ export async function initDB() {
     )
   `);
 
-  // game_rooms: max 2 players enforced by player_x (host) + player_o (joiner)
+  // game_rooms: max 2 players per room (player_x = host, player_o = joiner)
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS game_rooms (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -32,7 +32,6 @@ export async function initDB() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (player_x) REFERENCES users(id),
       FOREIGN KEY (player_o) REFERENCES users(id),
-      -- Ensures a user can only be in one active room at a time
       CONSTRAINT chk_different_players CHECK (player_x != player_o)
     )
   `);

@@ -36,31 +36,25 @@ gameRouter.get("/list", async (req: Request, res: Response) => {
   if (!user) return;
   const uid = Number(user.id);
 
-  // Other people's waiting rooms (joinable)
   const [open]: any = await pool.execute(`
     SELECT r.id, r.room_name, ux.username AS host, r.created_at,
-           IF(r.player_o IS NULL, 1, 2) AS player_count,
-           'open' AS kind
+           IF(r.player_o IS NULL, 1, 2) AS player_count
     FROM game_rooms r
     JOIN users ux ON r.player_x = ux.id
     WHERE r.status = 'waiting' AND r.player_x != ?
   `, [uid]);
 
-  // My own waiting rooms (so I can re-enter them)
   const [mine]: any = await pool.execute(`
     SELECT r.id, r.room_name, ux.username AS host, r.created_at,
-           IF(r.player_o IS NULL, 1, 2) AS player_count,
-           'mine' AS kind
+           IF(r.player_o IS NULL, 1, 2) AS player_count
     FROM game_rooms r
     JOIN users ux ON r.player_x = ux.id
     WHERE r.status = 'waiting' AND r.player_x = ?
   `, [uid]);
 
-  // My active room (so I can re-enter if I navigated away)
   const [active]: any = await pool.execute(`
     SELECT r.id, r.room_name, ux.username AS host, r.created_at,
-           2 AS player_count,
-           'active' AS kind
+           2 AS player_count
     FROM game_rooms r
     JOIN users ux ON r.player_x = ux.id
     WHERE r.status = 'active' AND (r.player_x = ? OR r.player_o = ?)
@@ -119,7 +113,6 @@ gameRouter.post("/move/:id", async (req: Request, res: Response) => {
   if (!room) return res.status(404).json({ error: "Room not found" });
   if (room.status !== 'active') return res.status(400).json({ error: "Game is not active — need 2 players" });
 
-  // Ensure board is always a plain string (guard against Buffer from MySQL)
   const board: string = room.board.toString();
   const userId = Number(user.id);
   const isX = Number(room.player_x) === userId;

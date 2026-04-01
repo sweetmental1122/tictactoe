@@ -31,7 +31,7 @@ export class Lobby {
           <div class="create-room">
             <input id="room-name-input" type="text" placeholder="Enter room name..." maxlength="50" />
             <button id="create-btn">
-              <span>＋</span> Create Room
+              <span>＋</span> Create
             </button>
           </div>
           <p id="lobby-msg" class="error" role="alert"></p>

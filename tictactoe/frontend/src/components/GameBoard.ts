@@ -17,8 +17,8 @@ interface RoomData {
 export class GameBoard {
   private pollInterval: number | null = null;
   private container: HTMLElement | null = null;
-  private updating = false; // lock to prevent concurrent renders
-  private lastBoard = "";   // track board changes to avoid redundant re-renders
+  private updating = false;
+  private lastBoard = "";
 
   private get userId(): number {
     return Number(localStorage.getItem("userId"));
@@ -47,7 +47,6 @@ export class GameBoard {
       .addEventListener("click", () => { this.stopPolling(); this.onBack(); });
 
     this.update();
-    // Poll every 1.5s for snappier opponent move updates
     this.pollInterval = window.setInterval(() => this.update(), 1500);
   }
 
@@ -165,7 +164,6 @@ export class GameBoard {
       const cell = new Cell({
         value,
         index,
-        // Clickable only on your turn and only on empty cells
         disabled: !isMyTurn || value !== "-",
         onClick: async (i) => {
           // Lock board immediately on click
@@ -179,10 +177,9 @@ export class GameBoard {
             // Restore board on error
             await this.update();
           } else {
-            // Apply move result directly — no extra fetch needed
             const updated: RoomData = await getGame(this.roomId);
             if (!(updated as any).error) {
-              this.lastBoard = ""; // force re-render
+              this.lastBoard = "";
               this.applyData(updated);
             }
           }
