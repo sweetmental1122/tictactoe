@@ -1,8 +1,9 @@
-// In development Vite exposes VITE_* env vars.
-// Set VITE_API_URL in frontend/.env to point at the host machine's LAN IP.
-// e.g.  VITE_API_URL=http://192.168.1.10:3001/api
+// Automatically use the same host the browser connected to.
+// This means if player opens http://192.168.1.10:5173, API calls go to
+// http://192.168.1.10:3001/api — no manual .env change needed.
 const BASE: string =
-  (import.meta as any).env?.VITE_API_URL ?? "http://localhost:3001/api";
+  (import.meta as any).env?.VITE_API_URL ||
+  `${window.location.protocol}//${window.location.hostname}:3001/api`;
 
 export function getToken(): string | null {
   return localStorage.getItem("token");
