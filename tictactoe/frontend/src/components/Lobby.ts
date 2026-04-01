@@ -7,17 +7,34 @@ export class Lobby {
 
   render(container: HTMLElement) {
     const username = localStorage.getItem("username");
+    const initial = (username ?? "?")[0].toUpperCase();
+
     container.innerHTML = `
       <div class="lobby">
+
+        <!-- Header -->
         <div class="lobby-header">
-          <h2>Welcome, ${username}</h2>
-          <button id="logout-btn">Logout</button>
+          <div class="lobby-brand">
+            <span class="lobby-logo">✕○</span>
+            <span class="lobby-title">TicTacToe</span>
+          </div>
+          <div class="lobby-user">
+            <div class="avatar">${initial}</div>
+            <span class="username-text">${username}</span>
+            <button id="logout-btn" class="icon-btn" title="Logout">⏻</button>
+          </div>
         </div>
 
-        <!-- Always visible: create a new room -->
-        <div class="create-room">
-          <input id="room-name-input" type="text" placeholder="Room name..." maxlength="50" />
-          <button id="create-btn">Create Room</button>
+        <!-- Create room -->
+        <div class="create-room-card">
+          <p class="card-label">Start a new game</p>
+          <div class="create-room">
+            <input id="room-name-input" type="text" placeholder="Enter room name..." maxlength="50" />
+            <button id="create-btn">
+              <span>＋</span> Create Room
+            </button>
+          </div>
+          <p id="lobby-msg" class="error" role="alert"></p>
         </div>
 
         <!-- Active game re-entry -->
@@ -27,10 +44,12 @@ export class Lobby {
         <div id="my-rooms-section"></div>
 
         <!-- Other open rooms -->
-        <h3>Open Rooms <button id="refresh-btn" class="refresh-btn" title="Refresh">↻</button></h3>
+        <div class="rooms-header">
+          <span class="section-label">Open Rooms</span>
+          <button id="refresh-btn" class="refresh-btn" title="Refresh">↻</button>
+        </div>
         <ul id="open-rooms-list" aria-label="Open rooms"></ul>
 
-        <p id="lobby-msg" class="error" role="alert"></p>
       </div>
     `;
 
@@ -99,14 +118,16 @@ export class Lobby {
     if (!active) { section.innerHTML = ""; return; }
 
     section.innerHTML = `
-      <div class="section-label">Your Active Game</div>
-      <div class="my-room active-room">
-        <div class="my-room-info">
-          <span class="room-badge active">● Active</span>
-          <strong>${active.room_name}</strong>
-          <small>2/2 players</small>
+      <div class="section-label" style="margin-top:1.2rem">Your Active Game</div>
+      <div class="room-card active-room">
+        <div class="room-card-left">
+          <span class="room-badge active">● Live</span>
+          <div>
+            <div class="room-card-name">${active.room_name}</div>
+            <div class="room-card-meta">2 / 2 players</div>
+          </div>
         </div>
-        <button class="enter-btn" id="reenter-btn">Re-enter Game</button>
+        <button class="btn-primary" id="reenter-btn">Re-enter</button>
       </div>
     `;
     section.querySelector<HTMLButtonElement>("#reenter-btn")!
@@ -117,17 +138,19 @@ export class Lobby {
     const section = container.querySelector<HTMLElement>("#my-rooms-section")!;
     if (!mine || mine.length === 0) { section.innerHTML = ""; return; }
 
-    section.innerHTML = `<div class="section-label">Your Rooms</div>`;
+    section.innerHTML = `<div class="section-label" style="margin-top:1.2rem">Your Rooms</div>`;
     mine.forEach((r: any) => {
       const div = document.createElement("div");
-      div.className = "my-room waiting-room";
+      div.className = "room-card waiting-room";
       div.innerHTML = `
-        <div class="my-room-info">
+        <div class="room-card-left">
           <span class="room-badge waiting">◌ Waiting</span>
-          <strong>${r.room_name}</strong>
-          <small>1/2 — waiting for opponent</small>
+          <div>
+            <div class="room-card-name">${r.room_name}</div>
+            <div class="room-card-meta">1 / 2 — waiting for opponent</div>
+          </div>
         </div>
-        <button class="enter-btn enter-my-room-btn">Enter</button>
+        <button class="btn-secondary enter-my-room-btn">Enter</button>
       `;
       div.querySelector<HTMLButtonElement>(".enter-my-room-btn")!
         .addEventListener("click", () => { this.stopRefresh(); this.onGameStart(r.id); });
@@ -137,24 +160,34 @@ export class Lobby {
 
   private renderOpenRooms(container: HTMLElement, open: any[]) {
     const list = container.querySelector<HTMLUListElement>("#open-rooms-list")!;
-
     list.innerHTML = "";
+
+    if (!open || open.length === 0) {
+      list.innerHTML = `<li class="empty-state">
+        <span class="empty-icon">🎮</span>
+        <span>No open rooms yet. Create one above!</span>
+      </li>`;
+      return;
+    }
+
     open.forEach((r: any) => {
       const isFull = Number(r.player_count) >= 2;
       const li = document.createElement("li");
-      li.className = isFull ? "room-full" : "";
+      li.className = `room-card open-room${isFull ? " room-full" : ""}`;
       li.innerHTML = `
-        <span>
-          <strong>${r.room_name}</strong>
-          <small>by ${r.host}</small>
-          <span class="player-count">${r.player_count}/2</span>
-        </span>
-        <button class="join-btn" ${isFull ? "disabled" : ""}>
-          ${isFull ? "Full" : "Join"}
+        <div class="room-card-left">
+          <div class="room-avatar">${r.room_name[0].toUpperCase()}</div>
+          <div>
+            <div class="room-card-name">${r.room_name}</div>
+            <div class="room-card-meta">by ${r.host} · <span class="${isFull ? "full-text" : "open-text"}">${r.player_count}/2 players</span></div>
+          </div>
+        </div>
+        <button class="btn-join" ${isFull ? "disabled" : ""}>
+          ${isFull ? "Full" : "Join →"}
         </button>
       `;
       if (!isFull) {
-        li.querySelector<HTMLButtonElement>(".join-btn")!
+        li.querySelector<HTMLButtonElement>(".btn-join")!
           .addEventListener("click", async () => {
             const msgEl = container.querySelector<HTMLElement>("#lobby-msg")!;
             msgEl.textContent = "";

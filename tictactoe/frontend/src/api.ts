@@ -1,6 +1,3 @@
-// Automatically use the same host the browser connected to.
-// This means if player opens http://192.168.1.10:5173, API calls go to
-// http://192.168.1.10:3001/api — no manual .env change needed.
 const BASE: string =
   (import.meta as any).env?.VITE_API_URL ||
   `${window.location.protocol}//${window.location.hostname}:3001/api`;

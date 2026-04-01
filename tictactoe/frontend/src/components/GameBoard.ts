@@ -35,7 +35,7 @@ export class GameBoard {
       <div class="game-container">
         <div class="game-info">
           <span id="game-status">Loading...</span>
-          <button id="back-btn">← Lobby</button>
+          <button id="back-btn">← Back</button>
         </div>
         <div class="player-labels" id="player-labels"></div>
         <div id="board" class="board" role="grid" aria-label="TicTacToe board"></div>

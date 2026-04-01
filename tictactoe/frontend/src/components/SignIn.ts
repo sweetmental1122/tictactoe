@@ -10,13 +10,20 @@ export class SignIn {
     container.innerHTML = `
       <div class="auth-container">
         <h1>TicTacToe</h1>
+        <p class="subtitle">Sign in to play</p>
         <div class="tabs">
           <button id="tab-signin" class="tab active">Sign In</button>
           <button id="tab-signup" class="tab">Sign Up</button>
         </div>
-        <form id="signin-form">
-          <input id="username" type="text" placeholder="Username" required autocomplete="username" />
-          <input id="password" type="password" placeholder="Password" required autocomplete="current-password" />
+        <form id="signin-form" novalidate>
+          <div class="input-group">
+            <label for="username">Username</label>
+            <input id="username" type="text" placeholder="Enter your username" required autocomplete="username" />
+          </div>
+          <div class="input-group">
+            <label for="password">Password</label>
+            <input id="password" type="password" placeholder="Enter your password" required autocomplete="current-password" />
+          </div>
           <button type="submit">Sign In</button>
           <p id="signin-error" class="error" role="alert"></p>
         </form>
