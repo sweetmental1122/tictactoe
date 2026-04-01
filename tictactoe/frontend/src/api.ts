@@ -1,11 +1,18 @@
-const BASE = "http://localhost:3001/api";
+// In development Vite exposes VITE_* env vars.
+// Set VITE_API_URL in frontend/.env to point at the host machine's LAN IP.
+// e.g.  VITE_API_URL=http://192.168.1.10:3001/api
+const BASE: string =
+  (import.meta as any).env?.VITE_API_URL ?? "http://localhost:3001/api";
 
 export function getToken(): string | null {
   return localStorage.getItem("token");
 }
 
 function authHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` };
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${getToken()}`,
+  };
 }
 
 export async function signUp(username: string, password: string) {
@@ -26,8 +33,12 @@ export async function signIn(username: string, password: string) {
   return res.json();
 }
 
-export async function createGame() {
-  const res = await fetch(`${BASE}/game/create`, { method: "POST", headers: authHeaders() });
+export async function createRoom(room_name: string) {
+  const res = await fetch(`${BASE}/game/create`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ room_name }),
+  });
   return res.json();
 }
 
@@ -37,7 +48,10 @@ export async function listGames() {
 }
 
 export async function joinGame(id: number) {
-  const res = await fetch(`${BASE}/game/join/${id}`, { method: "POST", headers: authHeaders() });
+  const res = await fetch(`${BASE}/game/join/${id}`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
   return res.json();
 }
 

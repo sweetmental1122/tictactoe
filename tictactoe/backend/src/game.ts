@@ -30,103 +30,154 @@ function checkWinner(board: string): string | null {
   return null;
 }
 
-// List open games — MUST be before /:id to avoid route conflict
+// List ALL rooms with player count — must be before /:id
 gameRouter.get("/list", async (req: Request, res: Response) => {
   const user = authenticate(req, res);
   if (!user) return;
-  const [rows]: any = await pool.execute(`
-    SELECT g.id, ux.username as x_name, g.created_at
-    FROM games g
-    JOIN users ux ON g.player_x = ux.id
-    WHERE g.status = 'waiting' AND g.player_x != ?
-  `, [user.id]);
-  res.json(rows);
+  const uid = Number(user.id);
+
+  // Other people's waiting rooms (joinable)
+  const [open]: any = await pool.execute(`
+    SELECT r.id, r.room_name, ux.username AS host, r.created_at,
+           IF(r.player_o IS NULL, 1, 2) AS player_count,
+           'open' AS kind
+    FROM game_rooms r
+    JOIN users ux ON r.player_x = ux.id
+    WHERE r.status = 'waiting' AND r.player_x != ?
+  `, [uid]);
+
+  // My own waiting rooms (so I can re-enter them)
+  const [mine]: any = await pool.execute(`
+    SELECT r.id, r.room_name, ux.username AS host, r.created_at,
+           IF(r.player_o IS NULL, 1, 2) AS player_count,
+           'mine' AS kind
+    FROM game_rooms r
+    JOIN users ux ON r.player_x = ux.id
+    WHERE r.status = 'waiting' AND r.player_x = ?
+  `, [uid]);
+
+  // My active room (so I can re-enter if I navigated away)
+  const [active]: any = await pool.execute(`
+    SELECT r.id, r.room_name, ux.username AS host, r.created_at,
+           2 AS player_count,
+           'active' AS kind
+    FROM game_rooms r
+    JOIN users ux ON r.player_x = ux.id
+    WHERE r.status = 'active' AND (r.player_x = ? OR r.player_o = ?)
+  `, [uid, uid]);
+
+  res.json({ open, mine: mine || [], active: active[0] || null });
 });
 
-// Create a new game
+// Create a room
 gameRouter.post("/create", async (req: Request, res: Response) => {
   const user = authenticate(req, res);
   if (!user) return;
+  const { room_name } = req.body;
+  if (!room_name || !String(room_name).trim())
+    return res.status(400).json({ error: "Room name is required" });
+
   const [result]: any = await pool.execute(
-    "INSERT INTO games (player_x) VALUES (?)", [user.id]
+    "INSERT INTO game_rooms (room_name, player_x) VALUES (?, ?)",
+    [String(room_name).trim(), Number(user.id)]
   );
-  res.json({ gameId: result.insertId });
+  res.status(201).json({ roomId: result.insertId, room_name: String(room_name).trim() });
 });
 
-// Join an existing game
+// Join a room
 gameRouter.post("/join/:id", async (req: Request, res: Response) => {
   const user = authenticate(req, res);
   if (!user) return;
-  const id = Number(req.params.id);
-  const [rows]: any = await pool.execute("SELECT * FROM games WHERE id = ?", [id]);
-  const game = rows[0];
-  if (!game) return res.status(404).json({ error: "Game not found" });
-  if (game.status !== 'waiting') return res.status(400).json({ error: "Game not available" });
-  if (game.player_x === user.id) return res.status(400).json({ error: "Cannot join your own game" });
+  const roomId = Number(req.params.id);
+
+  const [rows]: any = await pool.execute("SELECT * FROM game_rooms WHERE id = ?", [roomId]);
+  const room = rows[0];
+  if (!room) return res.status(404).json({ error: "Room not found" });
+  if (room.status !== 'waiting') return res.status(400).json({ error: "Room is full or already finished" });
+  if (Number(room.player_x) === Number(user.id))
+    return res.status(400).json({ error: "Cannot join your own room" });
 
   await pool.execute(
-    "UPDATE games SET player_o = ?, status = 'active' WHERE id = ?",
-    [user.id, id]
+    "UPDATE game_rooms SET player_o = ?, status = 'active' WHERE id = ?",
+    [Number(user.id), roomId]
   );
-  res.json({ message: "Joined game", gameId: id });
+  res.json({ message: "Joined room", roomId });
 });
 
 // Make a move
 gameRouter.post("/move/:id", async (req: Request, res: Response) => {
   const user = authenticate(req, res);
   if (!user) return;
-  const id = Number(req.params.id);
+  const roomId = Number(req.params.id);
   const position = Number(req.body.position);
 
   if (isNaN(position) || position < 0 || position > 8)
-    return res.status(400).json({ error: "Invalid position" });
+    return res.status(400).json({ error: "Invalid position (must be 0–8)" });
 
-  const [rows]: any = await pool.execute("SELECT * FROM games WHERE id = ?", [id]);
-  const game = rows[0];
-  if (!game) return res.status(404).json({ error: "Game not found" });
-  if (game.status !== 'active') return res.status(400).json({ error: "Game not active" });
+  const [rows]: any = await pool.execute("SELECT * FROM game_rooms WHERE id = ?", [roomId]);
+  const room = rows[0];
+  if (!room) return res.status(404).json({ error: "Room not found" });
+  if (room.status !== 'active') return res.status(400).json({ error: "Game is not active — need 2 players" });
 
-  const isX = game.player_x === user.id;
-  const isO = game.player_o === user.id;
-  if (!isX && !isO) return res.status(403).json({ error: "Not a player in this game" });
-  if ((game.current_turn === 'X' && !isX) || (game.current_turn === 'O' && !isO))
+  // Ensure board is always a plain string (guard against Buffer from MySQL)
+  const board: string = room.board.toString();
+  const userId = Number(user.id);
+  const isX = Number(room.player_x) === userId;
+  const isO = Number(room.player_o) === userId;
+
+  if (!isX && !isO) return res.status(403).json({ error: "You are not a player in this room" });
+  if ((room.current_turn === 'X' && !isX) || (room.current_turn === 'O' && !isO))
     return res.status(400).json({ error: "Not your turn" });
-  if (game.board[position] !== '-')
+  if (board[position] !== '-')
     return res.status(400).json({ error: "Cell already taken" });
 
-  const board = game.board.split('');
-  board[position] = game.current_turn;
-  const newBoard = board.join('');
+  const cells = board.split('');
+  cells[position] = room.current_turn;
+  const newBoard = cells.join('');
   const winner = checkWinner(newBoard);
-  const nextTurn = game.current_turn === 'X' ? 'O' : 'X';
+  const nextTurn = room.current_turn === 'X' ? 'O' : 'X';
 
   if (winner) {
     await pool.execute(
-      "UPDATE games SET board = ?, winner = ?, status = 'finished' WHERE id = ?",
-      [newBoard, winner, id]
+      "UPDATE game_rooms SET board = ?, winner = ?, status = 'finished' WHERE id = ?",
+      [newBoard, winner, roomId]
     );
   } else {
     await pool.execute(
-      "UPDATE games SET board = ?, current_turn = ? WHERE id = ?",
-      [newBoard, nextTurn, id]
+      "UPDATE game_rooms SET board = ?, current_turn = ? WHERE id = ?",
+      [newBoard, nextTurn, roomId]
     );
   }
 
   res.json({ board: newBoard, winner: winner || null, currentTurn: winner ? null : nextTurn });
 });
 
-// Get game state — keep /:id last
+// Get room state — keep /:id last
 gameRouter.get("/:id", async (req: Request, res: Response) => {
   const user = authenticate(req, res);
   if (!user) return;
-  const id = Number(req.params.id);
+  const roomId = Number(req.params.id);
   const [rows]: any = await pool.execute(`
-    SELECT g.*, ux.username as x_name, uo.username as o_name
-    FROM games g
-    LEFT JOIN users ux ON g.player_x = ux.id
-    LEFT JOIN users uo ON g.player_o = uo.id
-    WHERE g.id = ?
-  `, [id]);
-  if (!rows[0]) return res.status(404).json({ error: "Game not found" });
-  res.json(rows[0]);
+    SELECT
+      r.id, r.room_name,
+      r.player_x, r.player_o,
+      r.board, r.current_turn,
+      r.winner, r.status, r.created_at,
+      ux.username AS x_name,
+      uo.username AS o_name
+    FROM game_rooms r
+    LEFT JOIN users ux ON r.player_x = ux.id
+    LEFT JOIN users uo ON r.player_o = uo.id
+    WHERE r.id = ?
+  `, [roomId]);
+  if (!rows[0]) return res.status(404).json({ error: "Room not found" });
+
+  const room = rows[0];
+  // Normalize types so frontend comparisons are reliable
+  res.json({
+    ...room,
+    player_x: Number(room.player_x),
+    player_o: room.player_o !== null ? Number(room.player_o) : null,
+    board: room.board.toString(),
+  });
 });
