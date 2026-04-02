@@ -1,20 +1,8 @@
 import { Router, Request, Response } from "express";
-import jwt from "jsonwebtoken";
 import { pool } from "./db";
+import { authenticate } from "./middleware/auth";
 
 export const gameRouter = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "supersecretkey";
-
-function authenticate(req: Request, res: Response): any | null {
-  const auth = req.headers.authorization;
-  if (!auth) { res.status(401).json({ error: "No token" }); return null; }
-  try {
-    return jwt.verify(auth.split(" ")[1], JWT_SECRET) as any;
-  } catch {
-    res.status(401).json({ error: "Invalid token" });
-    return null;
-  }
-}
 
 function checkWinner(board: string): string | null {
   const wins = [
@@ -30,7 +18,6 @@ function checkWinner(board: string): string | null {
   return null;
 }
 
-// List ALL rooms with player count — must be before /:id
 gameRouter.get("/list", async (req: Request, res: Response) => {
   const user = authenticate(req, res);
   if (!user) return;
@@ -63,7 +50,6 @@ gameRouter.get("/list", async (req: Request, res: Response) => {
   res.json({ open, mine: mine || [], active: active[0] || null });
 });
 
-// Create a room
 gameRouter.post("/create", async (req: Request, res: Response) => {
   const user = authenticate(req, res);
   if (!user) return;
@@ -78,7 +64,6 @@ gameRouter.post("/create", async (req: Request, res: Response) => {
   res.status(201).json({ roomId: result.insertId, room_name: String(room_name).trim() });
 });
 
-// Join a room
 gameRouter.post("/join/:id", async (req: Request, res: Response) => {
   const user = authenticate(req, res);
   if (!user) return;
@@ -98,7 +83,6 @@ gameRouter.post("/join/:id", async (req: Request, res: Response) => {
   res.json({ message: "Joined room", roomId });
 });
 
-// Make a move
 gameRouter.post("/move/:id", async (req: Request, res: Response) => {
   const user = authenticate(req, res);
   if (!user) return;
@@ -145,7 +129,6 @@ gameRouter.post("/move/:id", async (req: Request, res: Response) => {
   res.json({ board: newBoard, winner: winner || null, currentTurn: winner ? null : nextTurn });
 });
 
-// Get room state — keep /:id last
 gameRouter.get("/:id", async (req: Request, res: Response) => {
   const user = authenticate(req, res);
   if (!user) return;
@@ -166,7 +149,6 @@ gameRouter.get("/:id", async (req: Request, res: Response) => {
   if (!rows[0]) return res.status(404).json({ error: "Room not found" });
 
   const room = rows[0];
-  // Normalize types so frontend comparisons are reliable
   res.json({
     ...room,
     player_x: Number(room.player_x),

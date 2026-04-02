@@ -33,7 +33,6 @@ initDB()
       console.log(`Server running:`);
       console.log(`  Local : http://localhost:${PORT}`);
       console.log(`  LAN   : http://${lan}:${PORT}`);
-      console.log(`Share the LAN address with other players.`);
     });
   })
   .catch((err) => {

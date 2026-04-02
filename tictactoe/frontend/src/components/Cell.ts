@@ -1,5 +1,5 @@
 export interface CellProps {
-  value: string;   // 'X', 'O', or '-'
+  value: string;   
   index: number;
   disabled: boolean;
   onClick: (index: number) => void;

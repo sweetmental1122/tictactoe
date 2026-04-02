@@ -18,7 +18,6 @@ export async function initDB() {
     )
   `);
 
-  // game_rooms: max 2 players per room (player_x = host, player_o = joiner)
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS game_rooms (
       id INT AUTO_INCREMENT PRIMARY KEY,

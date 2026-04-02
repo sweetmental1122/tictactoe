@@ -92,10 +92,8 @@ export class GameBoard {
       data.status === "active" &&
       data.current_turn === mySymbol;
 
-    // Status bar
     statusEl.textContent = this.buildStatus(data, playerX, playerO, uid, isMyTurn);
 
-    // Player labels — show who is X and who is O
     if (data.status !== "waiting") {
       labelsEl.innerHTML = `
         <span class="plabel x ${data.current_turn === "X" && data.status === "active" ? "active-turn" : ""}">
@@ -111,17 +109,14 @@ export class GameBoard {
 
     if (data.status === "finished") {
       this.stopPolling();
-      // Still render the final board (read-only)
       this.renderBoard(boardEl, msgEl, data.board, false);
       return;
     }
 
-    // Only re-render board if board state actually changed
     if (data.board !== this.lastBoard) {
       this.lastBoard = data.board;
       this.renderBoard(boardEl, msgEl, data.board, isMyTurn);
     } else if (isMyTurn !== this.isBoardInteractive(boardEl)) {
-      // Turn switched but board string unchanged — re-render to update disabled state
       this.renderBoard(boardEl, msgEl, data.board, isMyTurn);
     }
   }
@@ -166,7 +161,6 @@ export class GameBoard {
         index,
         disabled: !isMyTurn || value !== "-",
         onClick: async (i) => {
-          // Lock board immediately on click
           boardEl.querySelectorAll<HTMLButtonElement>("button")
             .forEach(b => (b.disabled = true));
           msgEl.textContent = "";
@@ -174,7 +168,6 @@ export class GameBoard {
           const result = await makeMove(this.roomId, i);
           if (result.error) {
             msgEl.textContent = result.error;
-            // Restore board on error
             await this.update();
           } else {
             const updated: RoomData = await getGame(this.roomId);

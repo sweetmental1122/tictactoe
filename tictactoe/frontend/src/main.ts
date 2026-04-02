@@ -4,7 +4,7 @@ import { Lobby } from "./components/Lobby";
 import { GameBoard } from "./components/GameBoard";
 
 const app = document.getElementById("app")!;
-
+//signIn
 function showSignIn() {
   const signIn = new SignIn(
     () => showLobby(),
@@ -12,7 +12,7 @@ function showSignIn() {
   );
   signIn.render(app);
 }
-
+//signUP
 function showSignUp() {
   const signUp = new SignUp(() => showSignIn());
   signUp.render(app);
